@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Grid Island — MVP</title>
+  <link rel="stylesheet" href="./css/style.css" />
+  <script src="/socket.io/socket.io.js"></script>
+  <script type="importmap">
+  { "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js" } }
+  </script>
+</head>
+<body>
+  <div id="lobby" class="hidden">
+    <div class="lbox">
+      <div class="ltitle">🏝️ Grid Island</div>
+      <input id="nick" maxlength="12" placeholder="닉네임" autocomplete="off" />
+      <button id="lobby-home">🏠 내 섬 입장 <span class="lcode">(내 코드: <b id="mycode">—</b>)</span></button>
+      <div class="ldiv">— 또는 —</div>
+      <input id="joincode" maxlength="16" placeholder="초대코드로 친구 섬 방문" autocomplete="off" />
+      <button id="lobby-visit">✈️ 방문하기</button>
+    </div>
+  </div>
+  <div id="roombar"><span id="roomcode"></span><button id="gohome" title="내 섬">🏠</button><button id="govisit" title="방문">✈️</button></div>
+  <div id="hud">
+    <div id="title">🏝️ Grid Island — Phase 1</div>
+    <div id="hint">이동: WASD · 카메라: Q/E 회전, 휠 줌 · 리액션: 1~6</div>
+    <div class="row"><span id="seed">seed: —</span><button id="regen">🎲 새 섬</button></div>
+  </div>
+  <div id="clock">—</div>
+  <button id="ff" title="시간 빨리감기">⏩ +3시간</button>
+  <div id="money">💰 0 벨</div>
+  <button id="invbtn" title="가방 (I)">🎒 가방</button>
+  <button id="logbtn" title="도감 (L)">📖 도감</button>
+  <button id="wardrobe" title="옷장">👕 옷장</button>
+  <button id="designbtn" title="디자인">🎨 디자인</button>
+  <button id="mailbtn" title="우편">📬 우편</button>
+  <button id="terrabtn" title="지형 편집">🛠️ 지형</button>
+  <button id="playersbtn" title="접속자 목록">👥 접속자</button>
+  <button id="mutebtn" title="소리 켜기/끄기">🔊</button>
+  <div id="playerlist"></div>
+  <div id="reactbar"></div>
+  <div id="vignette"></div>
+  <canvas id="minimap" width="128" height="128" title="미니맵"></canvas>
+  <div id="terrabar" class="hidden">
+    <button data-tool="raise" class="sel">⬆️ 올리기</button>
+    <button data-tool="lower">⬇️ 내리기</button>
+    <button data-tool="ramp">🛗 경사로</button>
+    <button data-tool="water">💧 물</button>
+    <button data-tool="path">🛤️ 길</button>
+    <span class="thint">Space로 앞칸 편집 · Esc 종료</span>
+  </div>
+  <div id="prompt">Space : 대화하기</div>
+  <div id="toast" class="hide"></div>
+  <div id="chatlog"></div>
+  <input id="chatinput" maxlength="80" placeholder="메시지 입력 후 Enter…" autocomplete="off" />
+  <div id="placebar" class="hidden"></div>
+  <div id="inv"></div>
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>

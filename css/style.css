@@ -1,0 +1,280 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { width: 100%; height: 100%; overflow: hidden; background: #9ed9f2; }
+canvas { display: block; }
+
+#hud {
+  position: fixed; top: 12px; left: 12px; z-index: 10;
+  font-family: system-ui, "Segoe UI", sans-serif; color: #2b3a2b;
+  background: rgba(255, 255, 255, 0.82); border-radius: 12px;
+  padding: 10px 14px; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
+  user-select: none;
+}
+#title { font-weight: 700; font-size: 15px; }
+#hint { font-size: 12px; color: #57694f; margin-top: 3px; }
+.row { display: flex; align-items: center; gap: 10px; margin-top: 8px; font-size: 12px; }
+#regen {
+  border: none; background: #ffd34d; color: #4a3b00; font-weight: 700;
+  padding: 5px 10px; border-radius: 8px; cursor: pointer; font-size: 12px;
+}
+#regen:hover { background: #ffdf74; }
+
+#lobby {
+  position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center;
+  background: rgba(20, 40, 30, 0.55); font-family: system-ui, sans-serif;
+}
+#lobby.hidden { display: none; }
+#lobby .lbox { background: #fff; border-radius: 18px; padding: 26px 28px; width: min(360px, 90vw); box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3); text-align: center; }
+#lobby .ltitle { font-size: 22px; font-weight: 800; color: #2f8f5b; margin-bottom: 16px; }
+#lobby input { width: 100%; box-sizing: border-box; font-size: 15px; padding: 10px 12px; margin-bottom: 10px; border: 2px solid #cfe3d5; border-radius: 10px; outline: none; }
+#lobby button { width: 100%; border: none; border-radius: 10px; padding: 11px; font-size: 15px; font-weight: 700; cursor: pointer; margin-bottom: 6px; }
+#lobby #lobby-home { background: #ffd34d; color: #4a3b00; }
+#lobby #lobby-visit { background: #8fc9ea; color: #05324a; }
+#lobby .lcode { font-size: 12px; font-weight: 400; }
+#lobby .ldiv { color: #aaa; font-size: 12px; margin: 8px 0; }
+
+#roombar {
+  position: fixed; top: 12px; left: 50%; transform: translateX(-50%); z-index: 10;
+  display: flex; align-items: center; gap: 6px; font-family: system-ui, sans-serif;
+  background: rgba(255, 255, 255, 0.85); border-radius: 999px; padding: 4px 6px 4px 12px; box-shadow: 0 3px 10px rgba(0, 0, 0, 0.14);
+}
+#roombar #roomcode { font-size: 12px; font-weight: 700; color: #2b3a2b; }
+#roombar button { border: none; background: #eef2ee; border-radius: 999px; width: 28px; height: 28px; cursor: pointer; font-size: 13px; }
+#roombar button:hover { background: #ffd34d; }
+
+#clock {
+  position: fixed; top: 12px; right: 12px; z-index: 10;
+  font-family: system-ui, sans-serif; font-size: 14px; font-weight: 700; color: #2b3a2b;
+  background: rgba(255, 255, 255, 0.85); padding: 8px 14px; border-radius: 10px;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.15);
+}
+#ff {
+  position: fixed; top: 52px; right: 12px; z-index: 10;
+  border: none; background: rgba(255, 255, 255, 0.85); color: #2b3a2b; font-weight: 700;
+  padding: 5px 10px; border-radius: 8px; cursor: pointer; font-size: 12px;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.12);
+}
+#ff:hover { background: #fff; }
+
+#prompt {
+  display: none; position: fixed; left: 50%; bottom: 130px; transform: translateX(-50%); z-index: 10;
+  font-family: system-ui, sans-serif; font-size: 13px; font-weight: 700; color: #2b3a2b;
+  background: rgba(255, 255, 255, 0.9); padding: 6px 12px; border-radius: 999px;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.18);
+}
+
+#dialogue {
+  position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%); z-index: 20;
+  width: min(560px, 90vw); font-family: system-ui, sans-serif;
+  background: rgba(255, 255, 255, 0.95); border-radius: 14px; padding: 14px 18px;
+  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.22);
+}
+#dialogue.hidden { display: none; }
+#dialogue .dname { font-weight: 800; color: #2f8f5b; font-size: 14px; margin-bottom: 4px; }
+#dialogue .dtext { color: #2b3a2b; font-size: 15px; line-height: 1.5; }
+#dialogue .dhint { text-align: right; color: #9aa; font-size: 12px; margin-top: 6px; }
+
+#inv {
+  position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); z-index: 10;
+  display: flex; gap: 8px; font-family: system-ui, sans-serif;
+}
+#inv .chip {
+  background: rgba(255, 255, 255, 0.9); border-radius: 10px; padding: 6px 12px;
+  font-size: 15px; font-weight: 700; color: #2b3a2b; box-shadow: 0 3px 10px rgba(0, 0, 0, 0.15);
+}
+#inv .empty { background: rgba(255, 255, 255, 0.72); border-radius: 10px; padding: 6px 12px; font-size: 13px; color: #57694f; }
+
+#placebar {
+  position: fixed; left: 50%; bottom: 58px; transform: translateX(-50%); z-index: 11;
+  display: flex; align-items: center; gap: 6px; font-family: system-ui, sans-serif;
+  background: rgba(255, 255, 255, 0.9); border-radius: 12px; padding: 6px 10px;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.15);
+}
+#placebar.hidden { display: none; }
+#placebar .pbtitle { font-size: 12px; font-weight: 800; color: #2b3a2b; }
+#placebar .pbchip { border: none; background: #eef2ee; border-radius: 8px; padding: 5px 10px; font-size: 14px; font-weight: 700; cursor: pointer; }
+#placebar .pbchip.sel { background: #ffd34d; }
+#placebar .pbhint { font-size: 11px; color: #57694f; margin-left: 4px; }
+
+#toast {
+  position: fixed; left: 50%; bottom: 76px; transform: translateX(-50%); z-index: 15;
+  background: rgba(47, 143, 91, 0.95); color: #fff; font-family: system-ui, sans-serif;
+  font-weight: 700; font-size: 14px; padding: 7px 16px; border-radius: 999px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.22); transition: opacity 0.35s, transform 0.35s;
+}
+#toast.hide { opacity: 0; transform: translateX(-50%) translateY(8px); pointer-events: none; }
+
+#money {
+  position: fixed; top: 90px; right: 12px; z-index: 10;
+  font-family: system-ui, sans-serif; font-size: 14px; font-weight: 800; color: #7a5b13;
+  background: rgba(255, 247, 214, 0.92); padding: 7px 13px; border-radius: 10px;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.15);
+}
+#logbtn {
+  position: fixed; top: 128px; right: 12px; z-index: 10;
+  border: none; background: rgba(255, 255, 255, 0.85); color: #2b3a2b; font-weight: 700;
+  padding: 5px 10px; border-radius: 8px; cursor: pointer; font-size: 12px;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.12);
+}
+#logbtn:hover { background: #fff; }
+#wardrobe {
+  position: fixed; top: 166px; right: 12px; z-index: 10;
+  border: none; background: rgba(255, 255, 255, 0.85); color: #2b3a2b; font-weight: 700;
+  padding: 5px 10px; border-radius: 8px; cursor: pointer; font-size: 12px;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.12);
+}
+#wardrobe:hover { background: #fff; }
+#designbtn, #mailbtn {
+  position: fixed; right: 12px; z-index: 10;
+  border: none; background: rgba(255, 255, 255, 0.85); color: #2b3a2b; font-weight: 700;
+  padding: 5px 10px; border-radius: 8px; cursor: pointer; font-size: 12px;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.12);
+}
+#designbtn { top: 204px; }
+#mailbtn { top: 242px; }
+#designbtn:hover, #mailbtn:hover { background: #fff; }
+#terrabtn, #playersbtn, #mutebtn {
+  position: fixed; right: 12px; z-index: 10;
+  border: none; background: rgba(255, 255, 255, 0.85); color: #2b3a2b; font-weight: 700;
+  padding: 5px 10px; border-radius: 8px; cursor: pointer; font-size: 12px;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.12);
+}
+#terrabtn { top: 280px; }
+#terrabtn.on { background: #ffd34d; }
+#playersbtn { top: 318px; }
+#mutebtn { top: 356px; width: 36px; text-align: center; }
+#terrabtn:hover, #playersbtn:hover, #mutebtn:hover { background: #fff; }
+/* 너구리폰풍 HUD 버튼 통일: 둥근 카드 + 초록 글자 + 호버 살짝 이동 */
+#logbtn, #wardrobe, #designbtn, #mailbtn, #terrabtn, #playersbtn, #mutebtn, #ff {
+  border-radius: 13px; color: #45543a; box-shadow: 0 3px 9px rgba(60, 80, 45, 0.16);
+  transition: transform 0.08s ease, background 0.15s; border: 2px solid rgba(255, 255, 255, 0.7);
+}
+#logbtn:hover, #wardrobe:hover, #designbtn:hover, #mailbtn:hover, #terrabtn:hover, #playersbtn:hover, #mutebtn:hover { transform: translateX(-3px); }
+#money { border-radius: 13px; box-shadow: 0 3px 9px rgba(120, 90, 20, 0.18); }
+/* 하단 인벤토리 바 숨김 → I 키/🎒 버튼의 가방 창으로 대체 */
+#inv { display: none !important; }
+#invbtn {
+  position: fixed; left: 12px; top: 250px; z-index: 10;
+  border: 2px solid rgba(255, 255, 255, 0.7); background: rgba(255, 255, 255, 0.9); color: #45543a; font-weight: 800;
+  padding: 7px 14px; border-radius: 13px; cursor: pointer; font-size: 14px; box-shadow: 0 3px 10px rgba(60, 80, 45, 0.2);
+  transition: transform 0.08s, background 0.15s;
+}
+#invbtn:hover { background: #fff; transform: translateX(2px); }
+/* 가방 창 아이템 개수 배지 */
+.panel .lcell { position: relative; }
+.panel .icount { position: absolute; top: 4px; right: 6px; background: #6bbf59; color: #fff; border-radius: 9px; padding: 0 6px; font-size: 11px; font-weight: 800; }
+.panel .lcell.place { cursor: pointer; outline: 2px solid transparent; transition: outline-color 0.12s, transform 0.08s; }
+.panel .lcell.place:hover { outline-color: #ffd34d; transform: translateY(-2px); }
+.panel .lcell .ptag { position: absolute; bottom: 3px; left: 50%; transform: translateX(-50%); font-style: normal; font-size: 10px; font-weight: 800; color: #7a5b13; background: #ffe9a8; border-radius: 6px; padding: 0 5px; }
+/* 터레이닝 툴바 */
+#terrabar {
+  position: fixed; left: 50%; bottom: 58px; transform: translateX(-50%); z-index: 12;
+  display: flex; align-items: center; gap: 6px; font-family: system-ui, sans-serif;
+  background: rgba(255, 255, 255, 0.92); padding: 6px 10px; border-radius: 12px; box-shadow: 0 3px 12px rgba(0, 0, 0, 0.18);
+}
+#terrabar button { border: none; background: #eef2ee; border-radius: 8px; padding: 5px 9px; cursor: pointer; font-size: 13px; font-weight: 700; color: #2b3a2b; }
+#terrabar button.sel { background: #ffd34d; }
+#terrabar .thint { font-size: 11px; color: #6b7b6b; margin-left: 4px; }
+/* 미니맵 */
+/* 씬 캔버스 색감(동숲풍 채도 pop) + 화면 비네트 */
+canvas:not(#minimap) { filter: saturate(1.03) brightness(1.06) contrast(0.98); }
+#vignette {
+  position: fixed; inset: 0; pointer-events: none; z-index: 5;
+  background: radial-gradient(ellipse 78% 78% at 50% 45%, transparent 52%, rgba(35,45,35,0.18) 100%);
+}
+#minimap {
+  position: fixed; left: 12px; top: 108px; z-index: 10; width: 128px; height: 128px;
+  border-radius: 10px; background: rgba(255, 255, 255, 0.6); box-shadow: 0 3px 12px rgba(0, 0, 0, 0.18);
+  image-rendering: pixelated;
+}
+/* 접속자 목록 패널 */
+#playerlist {
+  display: none; position: fixed; right: 12px; top: 394px; z-index: 11; min-width: 140px;
+  font-family: system-ui, sans-serif; background: rgba(255, 255, 255, 0.95); border-radius: 10px;
+  padding: 8px 10px; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18); color: #2b3a2b;
+}
+#playerlist .pltitle { font-size: 12px; font-weight: 800; margin-bottom: 6px; color: #4a5a4a; }
+#playerlist .plrow { font-size: 13px; padding: 2px 0; }
+#playerlist .plrow.me { font-weight: 800; }
+/* 리액션 바 */
+#reactbar {
+  position: fixed; right: 12px; bottom: 12px; z-index: 11;
+  display: flex; gap: 6px; background: rgba(255, 255, 255, 0.82); padding: 6px 8px; border-radius: 999px;
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.16);
+}
+#reactbar button {
+  border: none; background: #eef2ee; border-radius: 999px; width: 34px; height: 34px;
+  cursor: pointer; font-size: 18px; line-height: 1; transition: transform 0.08s, background 0.15s;
+}
+#reactbar button:hover { background: #ffd34d; transform: scale(1.15); }
+.designp .dpal { display: flex; gap: 5px; margin-bottom: 10px; }
+.designp .dsw { width: 26px; height: 26px; border-radius: 6px; border: 3px solid transparent; cursor: pointer; }
+.designp .dsw.sel { border-color: #2b3a2b; }
+.designp .dgrid { display: grid; grid-template-columns: repeat(16, 1fr); width: 320px; max-width: 80vw; aspect-ratio: 1; gap: 1px; background: #ddd; border: 1px solid #ccc; user-select: none; }
+.designp .dcell { width: 100%; aspect-ratio: 1; cursor: pointer; }
+.panel .crow { display: flex; gap: 8px; margin-bottom: 10px; }
+.panel .cswatch { width: 32px; height: 32px; border-radius: 50%; border: 3px solid transparent; cursor: pointer; }
+.panel .cswatch.sel { border-color: #2b3a2b; }
+
+#chatlog {
+  position: fixed; left: 12px; bottom: 60px; z-index: 10; width: 280px;
+  font-family: system-ui, sans-serif; display: flex; flex-direction: column; gap: 3px; pointer-events: none;
+}
+#chatlog .cmsg {
+  align-self: flex-start; background: rgba(0, 0, 0, 0.5); color: #fff; font-size: 13px;
+  padding: 3px 9px; border-radius: 10px; transition: opacity 0.8s; max-width: 100%;
+}
+#chatlog .cmsg.fade { opacity: 0; }
+#chatinput {
+  display: none; position: fixed; left: 12px; bottom: 22px; z-index: 12; width: 300px;
+  font-family: system-ui, sans-serif; font-size: 14px; padding: 8px 12px; border-radius: 10px;
+  border: 2px solid #2f8f5b; outline: none; box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+}
+
+.panel {
+  position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 30;
+  width: min(460px, 92vw); max-height: 80vh; overflow-y: auto;
+  background: #fdfaf0; border-radius: 22px; padding: 0 20px 18px; border: 3px solid #ffffff;
+  box-shadow: 0 12px 38px rgba(60, 80, 45, 0.32); font-family: system-ui, "Segoe UI", sans-serif; color: #45543a;
+}
+.panel.hidden { display: none; }
+/* 잎사귀 초록 헤더(패널 폭을 꽉 채우는 둥근 상단바) */
+.panel .ptitle {
+  font-weight: 800; font-size: 17px; color: #fff; text-align: center;
+  margin: 0 -20px 14px; padding: 12px; background: linear-gradient(#8ccf5a, #6fb844);
+  border-radius: 19px 19px 14px 14px; box-shadow: 0 2px 0 rgba(0, 0, 0, 0.06);
+}
+.panel .prow { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid #eee; font-size: 14px; }
+.panel .prow > span:first-child { flex: 1; }
+.panel .pprice { color: #7a5b13; font-weight: 700; }
+.panel .prow button, .panel .pall {
+  border: none; background: #ffd34d; color: #4a3b00; font-weight: 700; border-radius: 8px;
+  padding: 5px 12px; cursor: pointer; font-size: 13px;
+}
+.panel .pall { display: block; width: 100%; margin-top: 12px; padding: 9px; }
+.panel .pclose { display: block; width: 100%; margin-top: 10px; padding: 8px; border: none; border-radius: 8px; background: #e6e6e6; cursor: pointer; font-weight: 700; }
+.panel .pempty { color: #888; padding: 14px 0; text-align: center; }
+.panel .stabs { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; }
+.panel .stab { border: none; background: #eee; border-radius: 8px 8px 0 0; padding: 6px 14px; font-weight: 700; cursor: pointer; font-size: 13px; }
+.panel .stab.on { background: #ffd34d; color: #4a3b00; }
+.panel .smoney { margin-left: auto; font-weight: 800; color: #7a5b13; font-size: 13px; }
+.panel .prow button[disabled] { background: #ddd; color: #999; cursor: default; }
+.panel .lsec { font-weight: 800; margin: 14px 0 8px; }
+.panel .lsec b { color: #2f8f5b; }
+.panel .lgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(74px, 1fr)); gap: 8px; }
+.panel .lcell {
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  background: #f2f2f2; border-radius: 10px; padding: 10px 4px; font-size: 22px; color: #bbb;
+}
+.panel .lcell.got { background: #eafaef; color: inherit; }
+.panel .lcell span { font-size: 11px; color: #57694f; }
+.panel .pnote { font-size: 11px; color: #999; font-weight: 400; }
+.panel .scols { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.panel .scap { font-weight: 700; font-size: 12px; margin-bottom: 6px; color: #57694f; }
+.panel .scell { display: inline-block; margin: 3px; border: none; background: #eef2ee; border-radius: 8px; padding: 6px 10px; font-size: 14px; font-weight: 700; cursor: pointer; }
+.panel .scell:hover { background: #ffd34d; }
+.panel .dtext { color: #2b3a2b; font-size: 15px; line-height: 1.5; }
+.panel .reqbox { background: #fff6e0; border: 1px solid #f0d795; border-radius: 8px; padding: 7px 10px; font-size: 13px; font-weight: 700; color: #7a5b13; margin-bottom: 8px; }
+.panel .reqbtn { border: none; background: #6bbf59; color: #fff; border-radius: 7px; padding: 4px 10px; font-weight: 800; cursor: pointer; margin-left: 4px; }
+.panel .reqbtn:hover { background: #58a848; }
+.panel .talkbtn { border: none; background: #eef2ee; border-radius: 8px; padding: 7px 12px; font-weight: 700; cursor: pointer; color: #2b3a2b; }
+.panel .talkbtn:hover { background: #ffd34d; }

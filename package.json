@@ -1,0 +1,8 @@
+{
+  "name": "grid-island",
+  "version": "0.2.0",
+  "type": "module",
+  "description": "그리드 기반 3D 섬 게임 (멀티플레이)",
+  "scripts": { "start": "node server.js" },
+  "dependencies": { "socket.io": "^4.7.5" }
+}
