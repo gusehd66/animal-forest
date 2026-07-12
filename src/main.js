@@ -816,10 +816,13 @@ function nearestInteract() {
   return null;
 }
 
+// 입력창(닉네임·채팅 등)에 포커스가 있으면 게임 단축키 무시
+function isTyping() { const a = document.activeElement; return !!a && (a.tagName === 'INPUT' || a.tagName === 'TEXTAREA'); }
+
 // 상호작용(Space): 대화 / 상점 / 낚시 / 곤충 / 채집
 addEventListener('keydown', (e) => {
   if (e.code !== 'Space' || e.repeat) return;
-  if (chatting) return;
+  if (!started || chatting || isTyping()) return; // 로비/입력창에선 무시(map·player 미존재)
   e.preventDefault();
   if (uiOpen()) return;
   if (terra.on) { doTerra(frontCell()); return; } // 터레이닝 모드: 앞칸 편집
@@ -937,8 +940,9 @@ addEventListener('keydown', (e) => {
 
 // 패널 단축키: Esc 닫기, L 도감
 addEventListener('keydown', (e) => {
-  if (e.code === 'Escape') { panels.forEach(p => p.close()); cancelPlacing(); if (terra.on) setTerra(false); if (chatting) closeChat(); }
-  else if (e.code === 'KeyL' && !uiOpen() && !chatting) logPanel.toggle();
+  if (e.code === 'Escape') { panels.forEach(p => p.close()); cancelPlacing(); if (terra.on) setTerra(false); if (chatting) closeChat(); return; }
+  if (!started || isTyping()) return; // 로비/입력창 타이핑 중엔 무시
+  if (e.code === 'KeyL' && !uiOpen() && !chatting) logPanel.toggle();
   else if (e.code === 'KeyI' && !chatting && (!uiOpen() || invPanel.open)) invPanel.toggle(); // 가방 열기/닫기
   else if (e.code === 'KeyF' && !chatting && !uiOpen() && !indoor && weatherEvents.starVisible) { // 별똥별 소원 빌기
     if (weatherEvents.wish()) { inv.add('star_fragment'); audio.catchGet(); attachBubble(player.group, '🌟'); inv.toast('🌠 소원을 빌었어요! 별조각 +1'); renderPlaceBar(); writeSave(snapshot()); }
@@ -1152,7 +1156,7 @@ onClick('govisit', () => { const c = window.prompt('방문할 초대코드:'); i
 const EMOTES = ['👋', '❤️', '😆', '😮', '😢', '👍'];
 const EMOTE_POSE = { '👋': 'wave', '❤️': 'up', '😆': 'jump', '😮': 'ohh', '😢': 'sad', '👍': 'up' };
 function doEmote(emoji) {
-  if (!emoji || chatting) return;
+  if (!emoji || chatting || !started || !player) return; // 게임 시작 전엔 무시
   audio.emote();
   attachBubble(player.group, emoji);
   if (player.doPose) player.doPose(EMOTE_POSE[emoji] || 'up'); // 전신 리액션 포즈
@@ -1164,7 +1168,7 @@ if (reactBar) EMOTES.forEach((em, i) => {
   b.onclick = () => doEmote(em); reactBar.appendChild(b);
 });
 addEventListener('keydown', (e) => { // 숫자키 1~6 = 리액션
-  if (chatting || uiOpen()) return;
+  if (!started || chatting || uiOpen() || isTyping()) return; // 로비/입력창 타이핑 중엔 무시
   const n = parseInt(e.key, 10);
   if (n >= 1 && n <= EMOTES.length) doEmote(EMOTES[n - 1]);
 });
