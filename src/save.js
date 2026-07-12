@@ -5,6 +5,7 @@ export function loadSave() {
   try { return JSON.parse(localStorage.getItem(KEY)); } catch { return null; }
 }
 export function writeSave(state) {
+  if (!state) return; // snapshot 전(월드 생성 전) 저장 스킵
   try { localStorage.setItem(KEY, JSON.stringify(state)); } catch { /* 용량초과 등 무시 */ }
 }
 export function clearSave() {

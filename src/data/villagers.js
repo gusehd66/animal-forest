@@ -43,7 +43,7 @@ export const VILLAGERS = [
     },
   },
   {
-    id: 'poro', name: '포로', personality: '느긋', color: 0xc9a6e0, ear: 0xc9a6e0, likes: 'fish', catch: '음냐~',
+    id: 'poro', name: '포로', personality: '느긋', color: 0xc9a6e0, ear: 0xc9a6e0, likes: 'crucian', catch: '음냐~',
     greet: {
       low: ['음냐… 누구세요~', '느긋하게~ 잘 부탁해~'],
       mid: ['구름 보러 안 갈래~?', '서두르면 지는 거야~'],

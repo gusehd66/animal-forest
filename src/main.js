@@ -749,6 +749,7 @@ function startGame(seed, isOnline) {
 
 // 현재 상태 스냅샷(직렬화)
 function snapshot() {
+  if (!map || !player) return null; // 게임 시작(월드 생성) 전엔 저장 스킵
   return {
     seed: map.seed, day: clock2.day, hour: clock2.hour,
     player: { x: player.x, z: player.z },

@@ -167,6 +167,7 @@ export class NpcPanel {
   _hearts(lv) { return '❤️'.repeat(lv) + '🤍'.repeat(5 - lv); }
   _render() {
     const n = this.npc, v = n.villager, lv = this.ctx.level(n);
+    const em = (id) => (info(id) || {}).emoji || '❔', nm = (id) => (info(id) || {}).name || id; // 미등록 id 방어
     if (this.ctx.say) this.ctx.say(this.line, n);   // 애니멀리즈 음성
     const gifts = this.ctx.giftables();
     const req = this.ctx.request(n);           // { item } 또는 null
@@ -175,11 +176,11 @@ export class NpcPanel {
       `<div class="ptitle">${PERSON_EMOJI[v.personality] || ''} ${n.name} <span class="pnote">${v.personality}</span></div>` +
       `<div class="lsec">친밀도 ${this._hearts(lv)}</div>` +
       `<div class="dtext" style="margin:10px 0">${this.line}</div>` +
-      (req ? `<div class="reqbox">🙏 부탁: ${info(req.item).emoji}${info(req.item).name} 필요해요` +
+      (req ? `<div class="reqbox">🙏 부탁: ${em(req.item)}${nm(req.item)} 필요해요` +
         (canFulfill ? ` <button class="reqbtn" data-fulfill>들어주기</button>` : ` <span class="pnote">(가진 게 없어요)</span>`) + `</div>` : '') +
       `<div style="margin:8px 0"><button class="talkbtn" data-more>💬 더 얘기하기</button></div>` +
       (gifts.length
-        ? `<div class="scap">🎁 선물하기 (${v.name}은(는) ${info(v.likes).emoji}을 좋아해요)</div><div>${gifts.map(id => `<button class="scell" data-gift="${id}">${info(id).emoji}</button>`).join('')}</div>`
+        ? `<div class="scap">🎁 선물하기 (${v.name}은(는) ${em(v.likes)}을 좋아해요)</div><div>${gifts.map(id => `<button class="scell" data-gift="${id}">${em(id)}</button>`).join('')}</div>`
         : `<div class="pempty">선물할 만한 게 없어요</div>`) +
       `<button class="pclose" data-close>닫기 (Esc)</button>`;
     this.el.querySelectorAll('[data-gift]').forEach(b => b.onclick = () => { this.line = this.ctx.gift(this.npc, b.dataset.gift); this._render(); });
