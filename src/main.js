@@ -557,11 +557,13 @@ const designPanel = new DesignPanel({
 panels.push(designPanel);
 document.getElementById('designbtn').addEventListener('click', () => designPanel.toggle());
 
+let _pendingMail = null; // 전송 실패 시 환불용
 const mailPanel = new MailPanel({
-  recipients: () => remotes.list(),
   giftables: giftableIds,
-  send: (to, item) => {
-    if (inv.items[item] > 0 && net) { inv.remove(item, 1); net.emit('mail', { to, item }); inv.toast('📬 우편을 보냈어요'); renderPlaceBar(); writeSave(snapshot()); }
+  send: (toCode, item) => {
+    if (!(inv.items[item] > 0) || !net) return;
+    inv.remove(item, 1); renderPlaceBar(); _pendingMail = { item };
+    net.emit('mail', { toCode: String(toCode || '').toUpperCase(), item });
   },
 });
 panels.push(mailPanel);
@@ -1172,6 +1174,8 @@ net = connectNet({
   time: (d) => { if (online) { clock2.day = d.day; clock2.hour = d.hour; } },
   chat: (d) => onChat(d),
   mailReceived: (d) => { inv.add(d.item, 1); const i = info(d.item); inv.toast(`📬 ${d.from}: ${i ? i.emoji + i.name : d.item}`); renderPlaceBar(); writeSave(snapshot()); },
+  mailbox: (list) => { for (const m of list || []) { inv.add(m.item, 1); const i = info(m.item); inv.toast(`📬 ${m.from || '?'}: ${i ? i.emoji + i.name : m.item}`); } renderPlaceBar(); writeSave(snapshot()); }, // 오프라인 동안 온 우편
+  mailResult: (d) => { if (d && d.ok) { inv.toast(d.online ? '📬 우편 전달됨!' : '📬 우편함에 보관됐어요'); } else { if (_pendingMail) { inv.add(_pendingMail.item, 1); renderPlaceBar(); } inv.toast('⚠️ ' + ((d && d.msg) || '전송 실패')); } _pendingMail = null; writeSave(snapshot()); },
   emote: (d) => { audio.emote(); remotes.bubble(d.id, d.emoji); },
   terraformed: (d) => { applyTerraEdit(d.gx, d.gz, d.height, d.terrain, d.ramp); rebuildTerrain(); },
   villagers: (d) => { if (Array.isArray(d.residents)) applyRoster(d.residents, true); },

@@ -16,6 +16,8 @@ export function connectNet(handlers) {
   socket.on('time', (d) => handlers.time(d));
   socket.on('chat', (d) => handlers.chat(d));
   socket.on('mailReceived', (d) => handlers.mailReceived(d));
+  socket.on('mailbox', (d) => handlers.mailbox(d));
+  socket.on('mailResult', (d) => handlers.mailResult(d));
   socket.on('emote', (d) => handlers.emote(d));
   socket.on('terraformed', (d) => handlers.terraformed(d));
   socket.on('villagers', (d) => handlers.villagers(d));

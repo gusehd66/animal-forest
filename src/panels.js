@@ -82,21 +82,24 @@ export class LogPanel {
 
 // 우편: 접속 중인 다른 플레이어에게 아이템 보내기
 export class MailPanel {
-  constructor(ctx) { this.ctx = ctx; this.el = panel('mail'); this.open = false; this.to = null; }
+  constructor(ctx) { this.ctx = ctx; this.el = panel('mail'); this.open = false; this.code = ''; }
   toggle() { this.open ? this.close() : this.show(); }
   show() { this.open = true; this._render(); this.el.classList.remove('hidden'); }
   close() { this.open = false; this.el.classList.add('hidden'); }
   _render() {
-    const rec = this.ctx.recipients(), items = this.ctx.giftables();
-    if (this.to && !rec.some(r => r.id === this.to)) this.to = null;
-    let body;
-    if (!rec.length) body = `<div class="pempty">접속한 다른 사람이 없어요</div>`;
-    else body = `<div class="scap">받는 사람</div><div>${rec.map(r => `<button class="scell${this.to === r.id ? ' sel' : ''}" data-to="${r.id}">${r.name}</button>`).join('')}</div>` +
-      `<div class="scap">보낼 아이템 ${this.to ? '' : '(먼저 받는 사람 선택)'}</div>` +
-      `<div>${items.length ? items.map(id => `<button class="scell" data-send="${id}">${info(id).emoji}</button>`).join('') : '<span class="pempty">보낼 게 없어요</span>'}</div>`;
-    this.el.innerHTML = `<div class="ptitle">📬 우편</div>${body}<button class="pclose" data-close>닫기 (Esc)</button>`;
-    this.el.querySelectorAll('[data-to]').forEach(b => b.onclick = () => { this.to = b.dataset.to; this._render(); });
-    this.el.querySelectorAll('[data-send]').forEach(b => b.onclick = () => { if (this.to) { this.ctx.send(this.to, b.dataset.send); this._render(); } });
+    const items = this.ctx.giftables();
+    this.el.innerHTML = `<div class="ptitle">📬 우편</div>` +
+      `<div class="scap">받는 사람 섬 코드</div><input class="mailcode" maxlength="16" placeholder="친구의 섬 코드 (예: LXVGH)" value="${this.code}" autocomplete="off" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid #d9d2bf;border-radius:8px;margin-bottom:10px;text-transform:uppercase" />` +
+      `<div class="scap">보낼 아이템 (눌러서 보내기)</div>` +
+      `<div>${items.length ? items.map(id => `<button class="scell" data-send="${id}">${info(id).emoji}</button>`).join('') : '<span class="pempty">보낼 게 없어요</span>'}</div>` +
+      `<div class="pnote" style="margin-top:8px">친구가 접속 안 해도 우편함에 도착해요.</div>` +
+      `<button class="pclose" data-close>닫기 (Esc)</button>`;
+    const codeInput = this.el.querySelector('.mailcode');
+    codeInput.oninput = () => { this.code = codeInput.value; };
+    this.el.querySelectorAll('[data-send]').forEach(b => b.onclick = () => {
+      const c = (this.code || '').trim(); if (!c) { codeInput.focus(); return; }
+      this.ctx.send(c, b.dataset.send); this._render();
+    });
     this.el.querySelector('[data-close]').onclick = () => this.close();
   }
 }

@@ -135,6 +135,11 @@ io.on('connection', (socket) => {
       consumed: { flower: [...room.consumed.flower], bug: [...room.consumed.bug], fossil: [...room.consumed.fossil], shell: [...room.consumed.shell] },
     });
     socket.to(rid).emit('playerJoined', p);
+    // 오프라인 동안 도착한 우편 전달
+    if (socket.data.pid) {
+      const mails = await store.loadUnreadMail(socket.data.pid);
+      if (mails.length) { socket.emit('mailbox', mails.map((m) => ({ from: m.from_name, item: m.item, note: m.note }))); store.markMailRead(mails.map((m) => m.id)); }
+    }
   });
 
   socket.on('savePlayer', (d) => { if (socket.data.pid && d) store.savePlayer(socket.data.pid, d); }); // 개인 데이터 저장
@@ -146,7 +151,19 @@ io.on('connection', (socket) => {
   socket.on('plant', (d) => { const room = R(); if (!room) return; room.plants.push({ gx: d.gx, gz: d.gz, day: d.day, kind: d.kind }); dirty(room); socket.to(socket.data.room).emit('planted', { gx: d.gx, gz: d.gz, day: d.day, kind: d.kind }); });
   socket.on('harvest', (d) => { const room = R(); if (!room) return; room.plants = room.plants.filter((p) => !(p.gx === d.gx && p.gz === d.gz)); dirty(room); socket.to(socket.data.room).emit('harvested', { gx: d.gx, gz: d.gz }); });
   socket.on('chat', (d) => { const room = R(); if (!room) return; const p = room.players.get(socket.id); io.to(socket.data.room).emit('chat', { id: socket.id, name: p ? p.name : '?', text: String((d && d.text) || '').slice(0, 80) }); });
-  socket.on('mail', (d) => { const room = R(); const p = room && room.players.get(socket.id); io.to(d.to).emit('mailReceived', { from: p ? p.name : '?', item: d.item }); });
+  socket.on('mail', async (d) => {
+    const toCode = String((d && d.toCode) || '').slice(0, 16).toUpperCase();
+    const item = d && d.item; if (!toCode || !item) return;
+    const room = R(); const p = room && room.players.get(socket.id); const from = p ? p.name : '여행자';
+    const toId = await store.findPlayerIdByCode(toCode);
+    if (!toId) { socket.emit('mailResult', { ok: false, msg: '그 섬 코드를 찾을 수 없어요' }); return; }
+    // 받는 사람이 접속 중이면 즉시 전달(읽음 처리), 아니면 우편함에 보관(미읽음)
+    let online = null;
+    for (const s of io.sockets.sockets.values()) if (s.data.pid === toId) { online = s; break; }
+    if (online) online.emit('mailReceived', { from, item });
+    await store.addMail({ to_id: toId, from_name: from, item, note: d.note, read: !!online });
+    socket.emit('mailResult', { ok: true, online: !!online });
+  });
   socket.on('emote', (d) => { if (socket.data.room) socket.to(socket.data.room).emit('emote', { id: socket.id, emoji: String((d && d.emoji) || '').slice(0, 4) }); });
   socket.on('terra', (d) => {
     const room = R(); if (!room) return;

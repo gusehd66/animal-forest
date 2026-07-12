@@ -9,6 +9,10 @@ let impl = {
   async saveIsland() {},
   async loadPlayer() { return null; },
   async savePlayer() {},
+  async findPlayerIdByCode() { return null; },
+  async addMail() {},
+  async loadUnreadMail() { return []; },
+  async markMailRead() {},
 };
 
 if (url && key) {
@@ -47,6 +51,25 @@ if (url && key) {
           storage: d.storage, design: d.design, mycode: d.mycode, updated_at: new Date().toISOString(),
         });
         if (error) console.error('[store] savePlayer:', error.message);
+      },
+      async findPlayerIdByCode(code) {
+        const { data, error } = await sb.from('players').select('id').eq('mycode', code).maybeSingle();
+        if (error) { console.error('[store] findByCode:', error.message); return null; }
+        return data ? data.id : null;
+      },
+      async addMail(m) {
+        const { error } = await sb.from('mail').insert({ to_id: m.to_id, from_name: m.from_name, item: m.item, note: m.note || null, read: !!m.read });
+        if (error) console.error('[store] addMail:', error.message);
+      },
+      async loadUnreadMail(id) {
+        const { data, error } = await sb.from('mail').select('*').eq('to_id', id).eq('read', false).order('created_at');
+        if (error) { console.error('[store] loadMail:', error.message); return []; }
+        return data || [];
+      },
+      async markMailRead(ids) {
+        if (!ids || !ids.length) return;
+        const { error } = await sb.from('mail').update({ read: true }).in('id', ids);
+        if (error) console.error('[store] markMailRead:', error.message);
       },
     };
     console.log('[store] ✅ Supabase 영속성 활성화');
