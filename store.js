@@ -7,6 +7,8 @@ let impl = {
   live: false,
   async loadIsland() { return null; },
   async saveIsland() {},
+  async loadPlayer() { return null; },
+  async savePlayer() {},
 };
 
 if (url && key) {
@@ -27,6 +29,24 @@ if (url && key) {
           updated_at: new Date().toISOString(),
         });
         if (error) console.error('[store] saveIsland:', error.message);
+      },
+      async loadPlayer(id) {
+        const { data, error } = await sb.from('players').select('*').eq('id', id).maybeSingle();
+        if (error) { console.error('[store] loadPlayer:', error.message); return null; }
+        if (!data) return null;
+        return { // DB → 클라 프로필(snake→camel)
+          name: data.name, appearance: data.appearance, inventory: data.inventory, money: data.money,
+          collection: data.collection, friendship: data.friendship, houseItems: data.house_items,
+          storage: data.storage, design: data.design, mycode: data.mycode,
+        };
+      },
+      async savePlayer(id, d) {
+        const { error } = await sb.from('players').upsert({
+          id, name: d.name, appearance: d.appearance, inventory: d.inventory, money: d.money | 0,
+          collection: d.collection, friendship: d.friendship, house_items: d.houseItems,
+          storage: d.storage, design: d.design, mycode: d.mycode, updated_at: new Date().toISOString(),
+        });
+        if (error) console.error('[store] savePlayer:', error.message);
       },
     };
     console.log('[store] ✅ Supabase 영속성 활성화');

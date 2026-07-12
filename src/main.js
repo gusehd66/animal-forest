@@ -82,6 +82,11 @@ let houseItems = []; // 내 집 꾸미기 배치물 [{id,x,z,design,mesh}]
 let gotTestKit = false; // 테스트 가구 세트 지급 여부
 let net = null, online = false, started = false, myName = '', myId = null, chatting = false, curRoom = '';
 let myCode = (loadSave() && loadSave().mycode) || (Math.random().toString(36).slice(2, 7).toUpperCase());
+// 익명 계정 토큰(브라우저 고정) — 서버가 이걸로 개인 데이터를 저장/복원(멀티). 나중에 로그인으로 승격 가능.
+const pid = (() => {
+  try { let v = localStorage.getItem('grid-island-pid'); if (!v) { v = (self.crypto && crypto.randomUUID) ? crypto.randomUUID() : 'p' + Math.random().toString(36).slice(2) + Date.now().toString(36); localStorage.setItem('grid-island-pid', v); } return v; }
+  catch { return 'p' + Date.now().toString(36); }
+})();
 let sentX = null, sentZ = null, moveT = 0;
 const M = (c) => new THREE.MeshStandardMaterial({ color: c, roughness: 1, flatShading: true });
 
@@ -772,6 +777,32 @@ addEventListener('beforeunload', () => writeSave(snapshot()));
 document.addEventListener('visibilitychange', () => { if (document.hidden) writeSave(snapshot()); });
 let saveT = 0;
 
+// 계정 개인 데이터(섬 무관): 가방·돈·도감·친밀도·외형·집꾸미기·보관함
+function personalData() {
+  const s = snapshot(); if (!s) return null;
+  return { name: myName, appearance, inventory: s.inventory, money, collection: s.collection, friendship, houseItems: s.houseItems, storage: storage.items, design, mycode: myCode };
+}
+// 서버에서 받은 개인 데이터 적용(멀티 로그인 시 DB가 우선)
+function applyProfile(p) {
+  if (!p) return;
+  if (p.inventory) inv.setItems(p.inventory);
+  if (p.money != null) { money = p.money; updateMoney(); }
+  if (p.collection) {
+    const c = p.collection;
+    collection.fish = new Set(c.fish || []); collection.bug = new Set(c.bug || []); collection.fossil = new Set(c.fossil || []);
+    if (c.donated) collection.donated = { fish: new Set(c.donated.fish || []), bug: new Set(c.donated.bug || []), fossil: new Set(c.donated.fossil || []) };
+  }
+  if (p.friendship) { for (const k of Object.keys(friendship)) delete friendship[k]; Object.assign(friendship, p.friendship); }
+  if (p.appearance) { Object.assign(appearance, p.appearance); if (player) player.setAppearance(appearance); }
+  if (Array.isArray(p.design) && p.design.length === design.length) design = p.design;
+  if (p.storage) storage.items = p.storage;
+  if (Array.isArray(p.houseItems)) { houseItems = p.houseItems.map(h => ({ id: h.id, x: h.x, z: h.z, design: h.design })); if (playerInterior) { for (const h of houseItems) spawnHouseItemMesh(h); } }
+  if (p.name) { myName = p.name; if (nickInput) nickInput.value = myName; }
+  if (p.mycode) { myCode = p.mycode; updateRoomHud(); }
+  gotTestKit = true; // 기존 계정이면 테스트킷 재지급 방지
+  renderPlaceBar(); writeSave(snapshot());
+}
+
 // 가장 가까운 상호작용 대상: NPC > 상점 > 곤충 > 채집물 > 낚시(물가)
 function nearestInteract() {
   if (indoor) {
@@ -1074,7 +1105,7 @@ function loop() {
   if (it) { prompt.textContent = 'Space : ' + PT[it.kind]; prompt.style.display = 'block'; }
   else if (!indoor && weatherEvents.starVisible) { prompt.textContent = '🌠 별똥별!  F : 소원 빌기'; prompt.style.display = 'block'; }
   else prompt.style.display = 'none';
-  saveT += dt; if (saveT > 3) { writeSave(snapshot()); saveT = 0; } // 3초마다 자동저장
+  saveT += dt; if (saveT > 3) { writeSave(snapshot()); if (online && net) { const pd = personalData(); if (pd) net.emit('savePlayer', pd); } saveT = 0; } // 3초마다 자동저장(로컬 + 멀티는 서버 계정)
   miniT += dt; if (miniT > 0.2) { drawMinimap(); miniT = 0; } // 미니맵 5fps
   renderer.render(scene, camera);
 }
@@ -1094,13 +1125,14 @@ function joinRoom(code) {
   myName = (nickInput && nickInput.value.trim()) || myName || ('여행자' + (100 + Math.floor(Math.random() * 900)));
   curRoom = String(code || myCode).toUpperCase();
   if (lobby) lobby.classList.add('hidden');
-  net.emit('joinRoom', { room: curRoom, name: myName, appearance, x: player ? player.x : 0, z: player ? player.z : 0 });
+  net.emit('joinRoom', { room: curRoom, name: myName, appearance, pid, x: player ? player.x : 0, z: player ? player.z : 0 });
   writeSave(snapshot());
 }
 // 방 진입/전환 처리(welcome)
 function enterRoom(d) {
   myId = d.id; curRoom = d.room;
   if (!started) { startGame(d.seed, true); } else { buildWorld(d.seed); online = true; } // 첫 입장=복원, 전환=섬만 교체
+  if (d.profile) applyProfile(d.profile); // 계정 개인 데이터(DB 우선)
   remotes.setMap(map); remotes.clear();
   if (d.time) { clock2.day = d.time.day; clock2.hour = d.time.hour; lastDay = clock2.day; }
   if (Array.isArray(d.edits) && d.edits.length) { for (const e of d.edits) applyTerraEdit(e.gx, e.gz, e.height, e.terrain, e.ramp); rebuildTerrain(); } // 서버 지형 편집 반영
@@ -1114,7 +1146,7 @@ function enterRoom(d) {
 
 net = connectNet({
   connected: () => {
-    if (started) net.emit('joinRoom', { room: curRoom, name: myName, appearance, x: player.x, z: player.z }); // 재연결 시 방 복귀
+    if (started) net.emit('joinRoom', { room: curRoom, name: myName, appearance, pid, x: player.x, z: player.z }); // 재연결 시 방 복귀
     else { if (nickInput && saved && saved.name) nickInput.value = saved.name; const el = document.getElementById('mycode'); if (el) el.textContent = myCode; if (lobby) lobby.classList.remove('hidden'); }
   },
   welcome: (d) => enterRoom(d),
@@ -1216,6 +1248,7 @@ window.__game = {
   get placed() { return placedList; }, get placeMode() { return placeMode; },
   get plants() { return plants; }, get storage() { return storage; }, get shells() { return shells; },
   get roster() { return roster; }, rotateVillagers: () => { if (online && net) net.emit('rotateVillagers'); else rotateRosterLocal(); }, runBreeding, weatherEvents,
+  get pid() { return pid; }, personalData, applyProfile,
   get indoor() { return indoor; }, get house() { return houseWorld; },
   get online() { return online; }, get remotes() { return remotes; }, get net() { return net; }, get design() { return design; }, mailPanel, designPanel,
   shopPanel, logPanel, craftPanel, museumPanel, storagePanel, craft, donate, startFishing, startPlacing, growPlants, plantSeed, enterHouse, exitHouse, camera, follow, clock: clock2,

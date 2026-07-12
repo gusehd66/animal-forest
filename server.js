@@ -121,12 +121,14 @@ io.on('connection', (socket) => {
     const rid = String((d && d.room) || 'main').slice(0, 16).toUpperCase();
     leaveRoom();
     socket.data.room = rid; socket.join(rid);
+    socket.data.pid = d && d.pid ? String(d.pid).slice(0, 64) : null;
     const room = await ensureRoom(rid);
+    const profile = socket.data.pid ? await store.loadPlayer(socket.data.pid) : null; // 계정 개인 데이터
     if (socket.data.room !== rid) return; // 로딩 중 다른 방으로 이동했으면 취소
     const p = { id: socket.id, name: (d && d.name) || '여행자', appearance: d && d.appearance, x: (d && d.x) || 0, z: (d && d.z) || 0, face: 0 };
     room.players.set(socket.id, p);
     socket.emit('welcome', {
-      room: rid, seed: room.seed, id: socket.id,
+      room: rid, seed: room.seed, id: socket.id, profile,
       players: [...room.players.values()].filter((x) => x.id !== socket.id),
       placed: room.placed, plants: room.plants, time: gameTime,
       edits: [...room.edits.values()], residents: room.residents,
@@ -134,6 +136,8 @@ io.on('connection', (socket) => {
     });
     socket.to(rid).emit('playerJoined', p);
   });
+
+  socket.on('savePlayer', (d) => { if (socket.data.pid && d) store.savePlayer(socket.data.pid, d); }); // 개인 데이터 저장
 
   socket.on('move', (d) => { const room = R(); if (!room) return; const p = room.players.get(socket.id); if (p) { p.x = d.x; p.z = d.z; p.face = d.face; socket.to(socket.data.room).emit('playerMoved', { id: socket.id, x: d.x, z: d.z, face: d.face }); } });
   socket.on('place', (d) => { const room = R(); if (!room) return; room.placed.push({ gx: d.gx, gz: d.gz, id: d.id, design: d.design }); dirty(room); socket.to(socket.data.room).emit('placed', d); });
