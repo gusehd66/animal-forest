@@ -280,6 +280,21 @@ function villagerAtHome(v, hour, day) {
   const nap = 10 + ((seed >> 2) % 8);                // 낮잠 시작 10~17시
   return hour === nap;                               // 1시간만 집
 }
+// 주민이 근처 플레이어를 알아채고 다가와 인사(말풍선). 대화 패널은 Space로 따로.
+function approachPlayer(n, dt) {
+  n.noticeCD = (n.noticeCD || 0) - dt;
+  const dp = Math.hypot(player.x - n.x, player.z - n.z);
+  if (n.greeting) {
+    n.tx = player.x; n.tz = player.z; n.t = 0.4; n.activityT = 0; // 플레이어 쪽으로
+    if (dp < 1.9) { // 도착 → 인사 말풍선
+      n.greeting = false; n.noticeCD = 25 + Math.random() * 20;
+      n.faceTo(player.x, player.z); n.wave(); n.express('happy', 2);
+      const line = npcTalk(n); attachBubble(n.group, line); audio.speak(line, voiceOf(n)); if (n.startTalk) n.startTalk(line.length * 0.05);
+    }
+  } else if (n.noticeCD <= 0 && dp > 2 && dp < 6 && Math.hypot(player.x - n.homeX, player.z - n.homeZ) < 8 && Math.random() < dt * 0.4) {
+    n.greeting = true; n.noticeCD = 25 + Math.random() * 20; attachBubble(n.group, '❗'); n.express('surprised', 1);
+  }
+}
 // 거주 주민 id 목록으로 npc + 집 메시 재소환
 function spawnNpcs(ids) {
   if (npcs) for (const n of npcs) scene.remove(n.group);
@@ -301,11 +316,27 @@ function spawnNpcs(ids) {
 // 거주자 갱신(입주/퇴거) — 떠난·새 주민 토스트
 function applyRoster(ids, announce) {
   const prev = roster || [];
-  if (announce) {
-    for (const id of prev) if (!ids.includes(id)) { const v = villagerById(id); if (v) inv.toast(`👋 ${v.name}이(가) 섬을 떠났어요`); }
-    for (const id of ids) if (!prev.includes(id)) { const v = villagerById(id); if (v) inv.toast(`🎉 ${v.name}이(가) 이사왔어요!`); }
+  const departed = prev.filter(id => !ids.includes(id));
+  const arrived = ids.filter(id => !prev.includes(id));
+  // 이사 가는 연출: 떠나는 주민이 현재 있으면 손 흔들고 2.2초 뒤 교체
+  if (announce && map && npcs && departed.some(id => npcs.find(n => n.id === id))) {
+    for (const n of npcs) if (departed.includes(n.id)) {
+      n.arrivalGrace = 2.4; n.greeting = false; n.activityT = 0; n.wave(); n.express('sad', 2.2); attachBubble(n.group, '👋 안녕...');
+      const v = n.villager; inv.toast(`👋 ${v.name}이(가) 섬을 떠나요...`);
+    }
+    setTimeout(() => _finishRoster(ids, arrived, announce), 2200);
+    return;
   }
-  if (map) spawnNpcs(ids); else roster = ids.slice(0, 3);
+  _finishRoster(ids, arrived, announce);
+}
+function _finishRoster(ids, arrived, announce) {
+  if (!map) { roster = ids.slice(0, 3); return; }
+  spawnNpcs(ids);
+  // 이사 오는 연출: 새 주민 손 흔들기 + 🎉 + 잠깐 무조건 밖에 보이게
+  if (announce) for (const n of npcs) if (arrived.includes(n.id)) {
+    n.arrivalGrace = 5; n.wave(); n.express('happy', 3); attachBubble(n.group, '🎉');
+    inv.toast(`🎉 ${n.villager.name}이(가) 이사왔어요!`);
+  }
 }
 // 오프라인: 로컬로 한 명 교체(퇴거→입주)
 function rotateRosterLocal() {
@@ -1069,9 +1100,12 @@ function loop() {
   if (!frozen) player.update(dt, input, follow.yaw);
   { const dm = Math.hypot(player.x - lastPX, player.z - lastPZ); if (dm > 0.0005) { stepAcc += dm; if (stepAcc > 0.85) { audio.step(); stepAcc = 0; } } lastPX = player.x; lastPZ = player.z; }
   for (const n of npcs) { // 집/외출 스케줄: 집에 있으면 밖에 안 보임(중복 방지)
-    const home = villagerAtHome(n.villager, st.hour, st.day);
+    let home = villagerAtHome(n.villager, st.hour, st.day);
+    if (n.arrivalGrace > 0) home = false; // 이사 직후엔 잠깐 무조건 밖
     if (home && !n.atHome) { n.x = n.homeX; n.z = n.homeZ; n.tx = n.x; n.tz = n.z; n.t = 0; } // 집에 들어감 → 홈으로 복귀
-    n.atHome = home; n.update(dt, frozen); n.group.visible = !indoor && !home;
+    n.atHome = home;
+    if (!home && !indoor && !frozen) approachPlayer(n, dt); // 플레이어에게 다가와 인사
+    n.update(dt, frozen); n.group.visible = !indoor && !home;
   }
   if (indoor && interior && interior._char) { // 실내 주민: 표정 + 말하는 입
     updateFace(interior._char, dt, interior._talk > 0 ? 'happy' : 'neutral');

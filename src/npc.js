@@ -16,7 +16,18 @@ export class NPC {
     this.t = 0; this.tx = x; this.tz = z; this.face = 0; this.phase = 0; this.waveT = 0; this.talkT = 0;
     this.expr = 'neutral'; this.exprT = 0; this.idleExprT = 3 + Math.random() * 5;
     this.atHome = false; // 집에 있으면 밖에서 안 보임(중복 방지)
+    this.activity = 'none'; this.activityT = 0; this.actCD = 4 + Math.random() * 6; // 낚시/앉기/구경 등
+    this.arrivalGrace = 0; // 이사 온 직후 잠깐 무조건 밖에 보이게
     this._apply();
+  }
+
+  // 근처 물 방향(낚시용). 없으면 null.
+  _waterDir() {
+    for (const [dx, dz] of [[1.5, 0], [-1.5, 0], [0, 1.5], [0, -1.5]]) {
+      const c = this.map.cellAtWorld(this.x + dx, this.z + dz);
+      if (c && c.terrain === 'water') return Math.atan2(dx, dz);
+    }
+    return null;
   }
 
   // 반가운 손 흔들기(대화 시작 등)
@@ -41,30 +52,48 @@ export class NPC {
   update(dt, frozen) {
     if (this.atHome) return; // 집에 있음(밖에 안 보임) → 배회/애니 정지
     let moving = false;
-    if (!frozen) {
-      this.t -= dt;
+    const u = this.char.userData;
+    if (this.arrivalGrace > 0) this.arrivalGrace -= dt;
+    if (this.activityT > 0) {                 // 활동 중: 제자리에서 낚시/앉기/구경
+      if (frozen) { this.activityT = 0; this.activity = 'none'; } else this.activityT -= dt;
+      if (this.activityT <= 0) { this.activity = 'none'; this.actCD = 9 + Math.random() * 9; }
+    } else if (!frozen) {                      // 배회
+      this.actCD -= dt; this.t -= dt;
       if (this.t <= 0) {
-        this.t = 1.6 + Math.random() * 2.8;
-        const a = Math.random() * 6.28, r = Math.random() * HOME_R * 0.8;
-        this.tx = this.homeX + Math.cos(a) * r; this.tz = this.homeZ + Math.sin(a) * r;
+        if (this.actCD <= 0 && Math.random() < 0.6) { // 멈춘 김에 활동 시작
+          const wd = this._waterDir(), roll = Math.random();
+          this.activity = (wd != null && roll < 0.5) ? 'fish' : roll < 0.72 ? 'sit' : roll < 0.87 ? 'admire' : 'think';
+          if (this.activity === 'fish') this.face = wd;
+          this.activityT = 3 + Math.random() * 4;
+        } else { // 새 목적지
+          this.t = 1.6 + Math.random() * 2.8;
+          const a = Math.random() * 6.28, r = Math.random() * HOME_R * 0.85;
+          this.tx = this.homeX + Math.cos(a) * r; this.tz = this.homeZ + Math.sin(a) * r;
+        }
       }
-      const dx = this.tx - this.x, dz = this.tz - this.z, d = Math.hypot(dx, dz);
-      if (d > 0.12) {
-        const vx = (dx / d) * SPEED * dt, vz = (dz / d) * SPEED * dt;
-        if (this._canStand(this.x + vx, this.z + vz)) { this.x += vx; this.z += vz; this.face = Math.atan2(dx, dz); moving = true; }
-        else this.t = 0;
+      if (this.activityT <= 0) {               // 이동
+        const dx = this.tx - this.x, dz = this.tz - this.z, d = Math.hypot(dx, dz);
+        if (d > 0.12) {
+          const vx = (dx / d) * SPEED * dt, vz = (dz / d) * SPEED * dt;
+          if (this._canStand(this.x + vx, this.z + vz)) { this.x += vx; this.z += vz; this.face = Math.atan2(dx, dz); moving = true; }
+          else this.t = 0;
+        }
       }
     }
     this.group.rotation.y += (this.face - this.group.rotation.y) * Math.min(1, 10 * dt);
     // 가벼운 애니메이션: 걸을 때 통통, 멈추면 숨쉬듯 살짝
     this.phase += dt * (moving ? 9 : 2.2);
-    const u = this.char.userData;
     if (moving) { this.char.position.y = Math.abs(Math.sin(this.phase)) * 0.06; const sw = Math.sin(this.phase) * 0.4; if (u.armL) u.armL.rotation.x = sw; if (u.armR) u.armR.rotation.x = -sw; }
     else { this.char.position.y = Math.sin(this.phase) * 0.015; if (u.armL) u.armL.rotation.x *= 0.85; if (u.armR) u.armR.rotation.x *= 0.85; }
     if (this.waveT > 0) { // 손 흔들기: 오른팔 들어 좌우로
       this.waveT -= dt;
       if (u.armR) u.armR.rotation.z = -1.4 + Math.sin(this.waveT * 22) * 0.4;
     } else if (u.armR) u.armR.rotation.z *= 0.8;
+    if (this.activityT > 0) { // 활동 포즈
+      if (this.activity === 'fish' && u.armR) u.armR.rotation.x = -1.2 + Math.sin(this.phase * 3) * 0.12;
+      else if (this.activity === 'sit') this.char.position.y = -0.14;
+      else if (this.activity === 'admire' && this.exprT <= 0) this.express('happy', 1);
+    }
     if (this.talkT > 0 && u.muzzle) { // 말하는 입: 주둥이 위아래로
       this.talkT -= dt;
       u.muzzle.scale.y = 0.8 + Math.abs(Math.sin(this.phase * 3.2)) * 0.35;
