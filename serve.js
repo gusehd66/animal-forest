@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = fileURLToPath(new URL('.', import.meta.url));
 const PORT = process.env.PORT || 8720;
+const HOST = process.env.HOST || '0.0.0.0';
 const MIME = {
   '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css',
   '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml', '.json': 'application/json',
@@ -23,4 +24,4 @@ createServer(async (req, res) => {
   } catch {
     res.writeHead(404, { 'Content-Type': 'text/plain' }).end('404');
   }
-}).listen(PORT, () => console.log(`🏝️ grid-island: http://localhost:${PORT}`));
+}).listen(PORT, HOST, () => console.log(`🏝️ grid-island: http://${HOST}:${PORT}`));

@@ -7,6 +7,7 @@ import { Server } from 'socket.io';
 
 const ROOT = fileURLToPath(new URL('.', import.meta.url));
 const PORT = process.env.PORT || 8720;
+const HOST = process.env.HOST || '0.0.0.0';
 const MIME = {
   '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css',
   '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml', '.json': 'application/json',
@@ -115,4 +116,4 @@ io.on('connection', (socket) => {
   socket.on('disconnect', leaveRoom);
 });
 
-httpServer.listen(PORT, () => console.log(`🏝️ grid-island(멀티): http://localhost:${PORT}`));
+httpServer.listen(PORT, HOST, () => console.log(`🏝️ grid-island(멀티): http://${HOST}:${PORT}`));
