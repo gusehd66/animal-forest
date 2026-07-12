@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { CONFIG } from './config.js';
 import { buildVillager, updateFace } from './character.js';
 
-const SPEED = 1.7, R = 0.4, HOME_R = 3.5;
+const SPEED = 1.7, R = 0.4, HOME_R = 9; // 홈 주변을 넓게 배회(동숲처럼 마을을 돌아다님)
 
 export class NPC {
   constructor(map, x, z, villager) {
@@ -15,6 +15,7 @@ export class NPC {
     this.group.add(this.char);
     this.t = 0; this.tx = x; this.tz = z; this.face = 0; this.phase = 0; this.waveT = 0; this.talkT = 0;
     this.expr = 'neutral'; this.exprT = 0; this.idleExprT = 3 + Math.random() * 5;
+    this.atHome = false; // 집에 있으면 밖에서 안 보임(중복 방지)
     this._apply();
   }
 
@@ -38,6 +39,7 @@ export class NPC {
   faceTo(x, z) { this.face = Math.atan2(x - this.x, z - this.z); }
 
   update(dt, frozen) {
+    if (this.atHome) return; // 집에 있음(밖에 안 보임) → 배회/애니 정지
     let moving = false;
     if (!frozen) {
       this.t -= dt;

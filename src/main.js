@@ -150,8 +150,8 @@ function makeVillagerHouse(v) {
   const win = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.4, 0.08), M(0xbfe6ff)); win.position.set(0.55, 0.8, 0.86);
   g.add(body, roof, door, win); return g;
 }
-// 주민 집 실내(주민 색 테마 방 + 가구 + 안에 서 있는 주민 + 출구)
-function buildVillagerInterior(v) {
+// 주민 집 실내(주민 색 테마 방 + 가구 + 집에 있으면 주민 + 출구)
+function buildVillagerInterior(v, home) {
   const g = new THREE.Group(); g.visible = false;
   const floorC = new THREE.Color(v.color).lerp(new THREE.Color(0xffffff), 0.55);
   const wallC = new THREE.Color(v.color).lerp(new THREE.Color(0xffffff), 0.78);
@@ -164,12 +164,14 @@ function buildVillagerInterior(v) {
   for (const [id, x, z] of [['table', -2, -2], ['chair', -2, -1], ['lamp', 2, -2], ['bench', 2, 1.4]]) {
     const f = buildFurniture(id); f.position.set(x, 0, z); deflatten(f); g.add(f);
   }
-  // 안에 서 있는 주민
-  const char = buildVillager(v); char.position.set(0, 0, -1.6); char.rotation.y = 0; deflatten(char); g.add(char);
   const lamp = new THREE.PointLight(0xfff0d0, 0.8, 20); lamp.position.set(0, 3, 0); g.add(lamp);
   g._exit = { x: 0, z: 3.0 };
-  g._char = char;
-  g._innpc = { villager: v, id: v.id, name: v.name, group: char, x: 0, z: -1.6, faceTo() {}, wave() {}, startTalk(d) { g._talk = Math.min(2.5, d || 1); } };
+  // 집에 있을 때만 주민을 실내에 배치(외출 중이면 빈 집)
+  if (home) {
+    const char = buildVillager(v); char.position.set(0, 0, -1.6); char.rotation.y = 0; deflatten(char); g.add(char);
+    g._char = char;
+    g._innpc = { villager: v, id: v.id, name: v.name, group: char, x: 0, z: -1.6, faceTo() {}, wave() {}, startTalk(d) { g._talk = Math.min(2.5, d || 1); } };
+  }
   return g;
 }
 
@@ -269,6 +271,15 @@ function deflatten(root) {
 }
 
 const NPC_HOMES = [[-6, -5], [7, -6], [-8, 4]];
+// 주민 집/외출 스케줄(모든 클라 동일하도록 결정론적): 밤엔 집, 낮엔 대부분 외출 + 낮잠 2시간
+function _hashStr(s) { let h = 2166136261 >>> 0; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
+function villagerAtHome(v, hour, day) {
+  if (hour < 7 || hour >= 22) return true;           // 밤~새벽엔 집
+  const seed = (_hashStr(v.id) + day * 131) >>> 0;
+  if (seed % 3 !== 0) return false;                  // 그날은 낮잠 없음(대부분 외출)
+  const nap = 10 + ((seed >> 2) % 8);                // 낮잠 시작 10~17시
+  return hour === nap;                               // 1시간만 집
+}
 // 거주 주민 id 목록으로 npc + 집 메시 재소환
 function spawnNpcs(ids) {
   if (npcs) for (const n of npcs) scene.remove(n.group);
@@ -663,8 +674,10 @@ function enterHouse() {
   renderPlaceBar(); // 실내 꾸미기: 배치바 표시
 }
 function enterVillagerHouse(n) {
-  const room = buildVillagerInterior(n.villager); scene.add(room);
+  const home = n.atHome;
+  const room = buildVillagerInterior(n.villager, home); scene.add(room);
   enterIndoor(room, { x: n.houseWorld.x, z: n.houseWorld.z + 1.6 }, true);
+  if (!home) inv.toast(`🚪 ${n.name}은(는) 지금 외출 중이에요`);
 }
 function exitHouse() {
   indoor = false; player.indoor = false;
@@ -816,7 +829,7 @@ function nearestInteract() {
   }
   for (const n of npcs) if (n.houseWorld && Math.hypot(player.x - n.houseWorld.x, player.z - n.houseWorld.z) < 1.5) return { kind: 'vhouse', obj: n }; // 문 앞이면 방문 우선
   let nn = null, nd = 2.4;
-  for (const n of npcs) { const d = Math.hypot(player.x - n.x, player.z - n.z); if (d < nd) { nn = n; nd = d; } }
+  for (const n of npcs) { if (n.atHome) continue; const d = Math.hypot(player.x - n.x, player.z - n.z); if (d < nd) { nn = n; nd = d; } }
   if (nn) return { kind: 'npc', obj: nn };
   if (houseWorld && Math.hypot(player.x - houseWorld.x, player.z - houseWorld.z) < 2.6) return { kind: 'house' };
   if (shopWorld && Math.hypot(player.x - shopWorld.x, player.z - shopWorld.z) < 2.3) return { kind: 'shop' };
@@ -1055,7 +1068,11 @@ function loop() {
   const frozen = fishing || uiOpen() || chatting;
   if (!frozen) player.update(dt, input, follow.yaw);
   { const dm = Math.hypot(player.x - lastPX, player.z - lastPZ); if (dm > 0.0005) { stepAcc += dm; if (stepAcc > 0.85) { audio.step(); stepAcc = 0; } } lastPX = player.x; lastPZ = player.z; }
-  for (const n of npcs) n.update(dt, frozen);
+  for (const n of npcs) { // 집/외출 스케줄: 집에 있으면 밖에 안 보임(중복 방지)
+    const home = villagerAtHome(n.villager, st.hour, st.day);
+    if (home && !n.atHome) { n.x = n.homeX; n.z = n.homeZ; n.tx = n.x; n.tz = n.z; n.t = 0; } // 집에 들어감 → 홈으로 복귀
+    n.atHome = home; n.update(dt, frozen); n.group.visible = !indoor && !home;
+  }
   if (indoor && interior && interior._char) { // 실내 주민: 표정 + 말하는 입
     updateFace(interior._char, dt, interior._talk > 0 ? 'happy' : 'neutral');
     const mz = interior._char.userData.muzzle;
